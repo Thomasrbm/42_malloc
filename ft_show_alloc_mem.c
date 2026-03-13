@@ -1,3 +1,9 @@
+#include "ft_malloc.h"
+
+
+
+Hexa dump ???
+
 
 
 void show_alloc_mem();
@@ -19,3 +25,5 @@ Total : 52698 byte
 
 bonus : more details, for example,
 a history of allocations, or an hexa dump of the allocated zones.
+
+
