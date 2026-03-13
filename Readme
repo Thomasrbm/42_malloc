@@ -1,0 +1,111 @@
+
+
+
+======================= Memoire virtuelle =======================
+
+
+
+Toujours l aligner sur 16 pour la compat avec toutes les fonctions.
+(instruction SSE, acces aux double, structures alignees)
+
+
+
+
+
+======================= mmap et munmap =======================
+
+Ce sont des syscalls.
+
+
+- mmap alloue
+
+
+int prot
+
+PROT_   => acces (r w e, none)
+
+
+
+int flaf
+
+MAP_PRIVATE | MAP_ANON : demander d obtenir zone "prive" non lie a  un fichier 
+
+Private vs shared = chaque fork a sa zone memoire
+Anonymous = zone non lie fichier, full init a 0.
+
+de base mmap map des fichiers.
+
+fd = -1  pour malloc (car pas de fichier)
+
+
+offeset = decalage dans fichier (malloc = 0)
+
+
+
+si recoit  size 0 = NULL (choix perso)
+
+
+
+
+---------------
+
+- munmap libere.
+
+
+addr = addreess exacte du debut de la zone a free
+
+size = taille a free.
+
+free(NULL), return direct.
+
+
+======================= overhead syscall =======================
+
+
+Ne pas faire un mmap par malloc sinon overhead syscall enorme.
+
+
+
+
+Strategie impose : 
+
+zone muliple de getpagesize()
+
+-TINY  tel que  n = 128
+-SMALL tel que n+1  = 1024
+-LARGE tel que m = superieur
+
+
+
+
+
+======================= questions =======================
+
+
+heap header ???
+Pointeur vers la zone suivante du même type (liste chaînée)
+Taille totale de la zone
+Pointeur vers le premier bloc
+
+
+
+chunck header ???
+Taille du bloc (payload)
+État : libre ou occupé
+Pointeur vers le bloc suivant
+
+
+
+Comment parcourir la zone recu par mmap ? 
+
+
+
+
+show_alloc_mem = parcour les listes et adresse base de chaque zone
+adresse debut, fin, taille
+total octet.
+
+
+calcul de seuils
+
+arrondit aligne 16 octets.
