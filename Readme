@@ -20,9 +20,20 @@ Ce sont des syscalls.
 - mmap alloue
 
 
+addr  ; NULL pour avoir  n importe quelle libre (preciser serait dire je veux endroit special, cas specifique)
+
+lengt = taille zone 
+
+
 int prot
 
 PROT_   => acces (r w e, none)
+
+prot none = pour garde fou, segfault quoi quil dedans
+r = rodata si seul
+exec = pour .text
+
+read et wrrite pour malloc
 
 
 
