@@ -13,6 +13,8 @@ void *ft_malloc(size_t size)
     if (size <= 0)
         return ;
     void *area;
+
+    // lock avec mutex 
     if (size < 128)
     {
 
@@ -22,7 +24,7 @@ void *ft_malloc(size_t size)
 
         
 
-        // reserver grosse zone direct le max ou un peu moins ? 
+        // reserver grosse zone direct le max (x 100)
 
         // sous condition , reserver que si y a pas de zones libres
         // normaliser par le multiple de 128
@@ -44,6 +46,9 @@ void *ft_malloc(size_t size)
 
 
     }
+
+
+    // unlock mutex 
     return (area);
 }
 
