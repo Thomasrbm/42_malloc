@@ -1,37 +1,24 @@
-#pragma once
 
-
-
-typedef t_tiny
+typedef struct s_block
 {
-    void *addresse;
-    void *next;
-    size_t space_left;
-    bool is_alloc;
-} t_tiny
+    void            *addr;  // adr raw
+    struct s_block  *next;
+    size_t          size;
+    bool            is_free;
+}   t_block;
 
-typedef t_small
+typedef struct s_zone  // global a la liste + block detail pour chaque noed   
 {
-    void *addresse;
-    void *next;
-    size_t space_left;
-    bool is_alloc;
-} t_small
+    void            *start; // adr raw
+    size_t          total;
+    size_t          used;
+    t_zone          *next;  // vers zone suivante de * 100 (128 000)
+    t_block         *blocks; // vers debut de la liste de block de 128 ou 1024 etc
+}   t_zone;
 
-typedef t_large
+typedef struct s_malloc
 {
-    void *addresse;
-    void *next;
-    size_t space_left;
-    bool is_alloc;
-} t_large
-
-
-
-typedef global t_malloc
-{
-    **t_tiny tiny;
-    **t_small small;
-    **t_large large;
-} t_malloc
-
+    t_zone  *tiny;
+    t_zone  *small;
+    t_zone  *large;
+}   t_malloc;
