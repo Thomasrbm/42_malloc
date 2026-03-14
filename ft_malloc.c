@@ -10,12 +10,22 @@ while(areas.tiny[i])
 
 void *ft_malloc(size_t size)
 {
-    if (size >= 0)
+    if (size <= 0)
         return ;
     void *area;
     if (size < 128)
     {
 
+        // rediriger vers zone deja allouer.
+
+
+
+        
+
+        // reserver grosse zone direct le max ou un peu moins ? 
+
+        // sous condition , reserver que si y a pas de zones libres
+        // normaliser par le multiple de 128
         area = mmap(NULL, (size * 100),  PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, NULL);
 
         
