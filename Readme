@@ -1,12 +1,211 @@
 
 
+=======================  Quel probleme resout le MMU et la memoire virtuelle ?    ======================= 
 
-======================= Memoire virtuelle =======================
+
+
+1/ les librairies partagees (PARTAGE SANS COPIE)
+
+
+
+chrome et firefoxe use libc.
+
+il vont pas avoir chacun leur copie de la lib.
+1 copie est charge en RAM et eux ils ont leur adresse pour y avoir acces
+
+
+mais en realite elle est a 1 seul endroit precis.
+
+
+
+
+
+2/ Isolation 
+
+vu qu on passe par MMU pour attribuer les adresses alors les programme peuvent pas acceder n importe comment a la RAM
+et faire n importe quoi sur la RAM d un autre. 
+
+
+
+
+
+
+3/ plus de RAM
+
+
+on load que les pages effective, le programme a en soit reserver plus de ram mais a l instant T on load le bout necessaire 
+
+
+
+4/ fragmentation
+
+
+le programme croit voir de la memoire contigue
+en Ram ca peut etre eparpille
+
+
+
+
+
+
+
+
+
+======================= Malloc ne met pas a jour directement la RAM  =======================
+
+
+
+donc ce qu il faut retenir cest que malloc fait une promesse mais que l application dans la ram ne se fait qu au moment ou on charge une donne dedans
+
+
+seul la MMU  maj le journal d allocation  (page table)
+
+
+la RAM nest attrubue reellement que quand tu alloue une data reelle (voir observe malloc dans :  exemple -> maj ram avec alloc)
+
+
+
+
+
+=======================  READ/WRITE vs MMAP  =======================
+
+
+read :  Depuis le text en HDD il copie le contenu dans RAM kernell   puis copie  dans buffer de read en RAM aussi
+
+
+
+MMAP quand use pour lire fichier =  copier dans ram kernel.   cree un ptr vers ram kernel donc pas de 2e copie.
+
+
+=======================  MMAP et BRK  =======================
+
+
+
+Mmap = memory map
+
+Sert pour :
+
+- fichiers
+- anonyme mapping  (pas de ressource reel pour l isntant, juste zone reserve)
+- device (/dev/mem)
+
+
+fait appel au syscall 9 =  https://syscalls.w3challs.com/?arch=x86_64
+(munmap = 11)
+
+
+
+mmamp et munmap sont souvent preferes.
+car munmap free directement la memoire et l acces ram est direct possible
+
+
+
+brk met un peu de temps a reculer son pointeur de haut de heap et donc parfois temps d acces a la heap   => brk est le ptr de haut de heap
+donc pas opti / fragmentation
+
+
+
+
+=> pour grosse alloc mmap.
+
+
+se place au dessus de la heap, gradit vers le bas (vers la heap)
+
+Donc c est pas sur la heap au sens stricte mais c est considere conceptuellement sur la heap (le tas desordonne de memoire libre)
+
+
+
+
+
+
+
+
+==========>
+
+
+MAIS DANS LES FICHIER VMA  les anonymous (mmap)  sont pas listee dans la heap
+
+
+==========>
+
+
+
+
+
+
+
+======================= Memoire virtuelle - ESPACE D ADRESSAGE VIRTUELLE =======================
 
 
 
 Toujours l aligner sur 16 pour la compat avec toutes les fonctions.
 (instruction SSE, acces aux double, structures alignees)
+
+
+
+
+Dans le MMU (dans le cpu)
+memory management unit
+
+on a une table d adresse virtuelle qui indexe toutes les adresses reelles qui elles sont dans la RAM
+C est ici qu on map les zones via des pages et non directement des octets
+
+
+
+
+
+TOUT N ES PAS DANS LA RAM CONSTAMMENT
+
+si tout etait dans la RAM en meme temps y aurait vite plus de place.
+
+Le MMU fait croire a chaque programme qu il a une acces CONTINU et PRIVE a la RAM
+
+
+
+
+on cherche des PTE
+PTE  = page table entry  = match adress virtuelle et reelle.  
+
+LE MMU verifie son TLB voir si il a pas deja traduit une adresse.
+les pages d adresses sont dans la RAM, le registre CR3 pointe vers elles.
+
+CR3 pointe vers une page table (en RAM) qui elle qui dit cette adresse virtuelle a cette adresse physique. 
+
+
+
+Quand on accede a une adresse memoire physique : le mmu verifie avec un exeption  : "page fault" et ca reveil le kernel
+
+- soit la zone est pas liste dans les vma = segfault
+- soit oui mais pas encore aloue en RAM (vma dit la zone qu on a reserver est la, elle est vide) => on va use la zone
+- zone deja used ? cow (pour les enfant de fork qui partage la RAM du pere)
+
+
+
+
+
+
+
+
+======================= TLB =======================
+
+
+carnet de notes dans le MMU qui stock les choses deja traduite par le MMU 
+
+
+TLB hit => ya deja
+
+TLB miss => donc doit traduire
+
+
+======================= VMA - Virtual Memory Area =======================
+
+c est les structure de donnees du kernel qui decrivent les plages d adresses  = les lignes : 
+
+
+772a51460000-772a51494000 rw-p 00000000 00:00 0 
+
+
+
 
 
 
@@ -90,33 +289,107 @@ zone muliple de getpagesize()
 
 
 
-======================= questions =======================
-
-
-heap header ???
-Pointeur vers la zone suivante du même type (liste chaînée)
-Taille totale de la zone
-Pointeur vers le premier bloc
-
-
-
-chunck header ???
-Taille du bloc (payload)
-État : libre ou occupé
-Pointeur vers le bloc suivant
-
-
-
-Comment parcourir la zone recu par mmap ? 
 
 
 
 
-show_alloc_mem = parcour les listes et adresse base de chaque zone
-adresse debut, fin, taille
-total octet.
+======================= Free et   CHUNCK HEADER  =======================
 
 
-calcul de seuils
 
-arrondit aligne 16 octets.
+
+
+ malloc écrit un header juste avant le pointeur qu'elle te retourne.
+
+
+
+ Donc free a juste besoin de l adresse il saura direct la taille a free
+
+
+
+
+
+
+======================= EXEMPLES CONCRETS  =======================
+
+
+
+1/ Executable : Firefox et chrome
+
+
+/usr/bin/firefox
+
+
+Le kernel doit charger ce programme pour l'exécuter. Il ne fait pas read() pour copier tout le fichier en RAM. Il fait mmap.
+
+
+Disque                          RAM physique
+/usr/bin/firefox    ←——————→    page cache
+  page 0 (.text)                frame 0x3A  ←——→  adresse virtuelle 0x400000 (firefox)
+  page 1 (.text)                (pas encore)       adresse virtuelle 0x401000 (firefox)
+  page 2 (.text)                (pas encore)       adresse virtuelle 0x402000 (firefox)
+Le kernel mappe l'exécutable. Firefox "existe" dans l'espace virtuel. Mais les pages ne sont chargées depuis le disque que quand le CPU essaie de les exécuter. Si tu n'utilises jamais un bouton dans Firefox, le code de ce bouton n'a peut-être jamais quitté le disque.
+
+
+
+avec chrome ils usent la meme libc.so
+
+ont chacun leur adresse virtuelle pour la lib. mais partage la meme adresse physique
+
+
+
+
+2/  Editer git / visualiser un fichier / les DB
+
+
+
+dans un viewer photo c est mmap
+
+
+les diff de hash fait avec git c est mmap aussi
+
+
+sqlite mappe son fichier en .DB
+SELECT acces a ces pages via MMU
+
+
+
+3/ Regarder une video sur vlc
+
+
+
+le film est mappe en entier direct 
+
+Mais dans la ram seul les 3 secondes sont dans la ram autour du curseur
+
+elles peuvent etre remove au fur et a mesure si besoin.
+
+
+
+
+
+
+
+PAS MMAP 
+
+
+
+4/ Brancher une clef usb 
+
+
+la c est read/write qui ont lieu.
+
+le kernelle reconait le device stock son entre dans /dev/
+
+passe par file system fat32 par ex et modifie avec syscalls
+
+
+
+5/ Editer un note.txt
+
+
+
+read et write  avec gedit
+
+
+modifie dans ta RAM puis save dans la RAM kernell et le kernell save dans le SSD
